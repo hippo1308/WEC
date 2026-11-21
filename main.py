@@ -8,8 +8,13 @@ PORT = 8800
 batteryCharge = 0
 generator = 0
 
+event = ""
+forecast = ""
+buildings = []
+price = 0
+hour = 0
+
 def convJsonToList(data):
-    loads = {}
     global event
     global forecast
     global buildings
@@ -31,22 +36,6 @@ def recvJSON(s: socket.socket):
     IncData = json.loads(msg.decode("utf-8"))
     return IncData
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((HOST,PORT))
-    print("socket connected!!!", flush = True)
-    conn, addr = s.accept()
-    for hour in range(24):
-        data = convJsonToList(recvJSON(s))
-        event = data[0]
-        forecast = data[1]
-        price = data[3]
-        loads = data[2]
-        length = len(data[2]["loads"])
-        totalPowerNeeded = sum(loads[i]["load"] for i in range(length))
-        print(totalPowerNeeded)  
-        """ This is test code (lets hope marmoset connects or smth) """
-
-
 def distributePower(max, pType):
     buildingNum = len(buildings)
     i = 0
@@ -63,13 +52,64 @@ def distributePower(max, pType):
                 else:
                     buildings[i][pType] = toDistribute
                     toDistribute = 0
+        i += 1
 
-def reactToForecast():
-    if forecast == c
 
+
+def reactToForecast():  #Based on current battery charge, time of day, and predicted weather, run the generator
+    global generator
+    global hour
+    totalPowerNeeded = sum(buildings[i]["load"] for i in range(len(buildings)))
+    available_charge = max(0, int(100-batteryCharge))
+    
+    #dont charge if hour is 20 or higher, #dont charge if the event is generator 
+    if hour>=22 or event == "generator_failure":
+        generator= 0
+        # at this point (>22 hours) demand is low
+        # use solar power and battery charge
+        distributePower(200, "solar") 
+        distributePower(batteryCharge, "battery") 
+   
+    #available charge to be filled is 100-battery charge
+    
+    #if the forcast is cloudy, estimate the stored eng saving, and account for accuracy
+
+    if forecast == "cloudy_weather":
+        cloudy_prob = 0.75
+    else:
+        cloudy_prob = 0.25
+
+    solarLoad = sum(i["load"] for i in buildings if i['type'] != "lecture_hall")
+
+    #electriicity needed from the battery if cloudy 
+    cloudyNeed = totalPowerNeeded
+
+    #electricity when no clouudy
+    noCloudyNeed = totalPowerNeeded- min(200, solarLoad)
+
+    estimated_price = price
+
+    for i in range(available_charge):
+        numberOfUnit = batteryCharge + i +1
+
+        if numberOfUnit <= noCloudyNeed:
+            probUsed = 1.0
+        elif numberOfUnit <= cloudyNeed:
+            probUsed = cloudy_prob
+
+        else:
+            break
+
+        expectedSavings = probUsed*estimated_price
+
+        if expectedSavings>1.0:
+            generator +=1
+        else:
+            break
+    return generator
 
 def eventRestrictions():
-    if grid < 1: #if grid is below a dollar, use the grid and ditch the battery
+    if price < 1: #if grid price is below a dollar, use the grid and ditch the battery
         if event == "cloudy_weather":
             distributePower(100000,"grid")
         else:
@@ -77,35 +117,52 @@ def eventRestrictions():
             distributePower(100000,"grid")
     # if cloudy weather, solar panel cant be used
         # redistribute --> use battery mostly
-    if event == "cloudy_weather":
+    elif event == "cloudy_weather":
         distributePower(batteryCharge,"battery")
         distributePower(100000,"grid")    
         
     # if "generator_failure" Generator can't be used
         # redistribute --> use mostly solar and battery
-    if event == "generator_failure":
+    elif event == "generator_failure":
         distributePower(200, "solar")     
         if batteryCharge > 0: 
             #use battery for the rest
-            distributePower(100000, "battery")
+            distributePower(batteryCharge, "battery")
         else:
-            #use generator
-            distributePower(, "grid")
-             
-    elif grid < 1:
-        #use grid
-        distributePower(100000,"grid")
-
+            #use grid
+            distributePower(10000, "grid")
         
     # if battery failure, battery can't be used
-    if event == "battery_failure":
+    elif event == "battery_failure":
+        # redistribute --> use solar + grid
         distributePower(200, "solar")
         distributePower(100000,"grid")
-        
-   
-        # redistribute --> use solar
+    
     # if grid failure, grid can't be used
-        #redistribute
+        #redistribute --> solar + battery
+    elif event == "grid_failure":
+        distributePower(200, "solar")
+        distributePower(batteryCharge, "battery")
 
-    if event == "g"
+
+def compresscurrentData():
+    global buildings
+    dataToSend = {"buildings":[]}
+    for building in buildings:
+        dataToSend["buildings"].append({"solar":building["solar"], "battery": building["battery"], "grid": building["grid"]})
+    dataToSend["generator"] = generator
+    return dataToSend
+
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST,PORT))
+    print("socket connected!!!", flush = True)
+    conn, addr = s.accept()
+    for hour in range(24):
+        convJsonToList(recvJSON(s))
+        eventRestrictions()
+        batteryCharge += generator
+        generator = 0
+        sendJSON(s,compresscurrentData())
+        
 
