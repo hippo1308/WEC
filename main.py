@@ -27,14 +27,13 @@ def convJsonToList(data):
         buildings.append({"type":building["type"], "load":building["load"] ,"solar":0,"battery":0,"grid":0,"met":False})
     
 
-def sendJSON(s: socket.socket, dataToSend: dict):
-    msg = json.dumps(dataToSend).encode("utf-8")
-    s.sendall(msg)    
+def sendJSON(sock: socket.socket, data: dict):
+    payload = json.dumps(data).encode("utf-8")
+    sock.sendall(payload)    
 
-def recvJSON(s: socket.socket):
-    msg = s.recv(1024)
-    IncData = json.loads(msg.decode("utf-8"))
-    return IncData
+def recvJSON(sock: socket.socket):
+    rawPayload = sock.recv(2048)
+    return json.loads(rawPayload.decode("utf-8"))
 
 def distributePower(max, pType):
     buildingNum = len(buildings)
@@ -154,15 +153,13 @@ def compresscurrentData():
     return dataToSend
 
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((HOST,PORT))
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+    client.connect((HOST, PORT))
     print("socket connected!!!", flush = True)
-    s.listen(10)
     for hour in range(24):
-        conn, addr = s.accept()
-        convJsonToList(recvJSON(s))
+        convJsonToList(recvJSON(client))
         eventRestrictions()
         batteryCharge += generator
         generator = 0
-        sendJSON(s,compresscurrentData())
+        sendJSON(client,compresscurrentData())
         
