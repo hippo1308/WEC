@@ -21,7 +21,7 @@ def convJsonToList(data):
     global price
     event = data["random_event"]
     forecast = data["forecast"]
-    price = data["grid_price"]
+    price = data["grid_cost"]
     buildings = []
     for building in data["loads"]:
         buildings.append({"type":building["type"], "load":building["load"] ,"solar":0,"battery":0,"grid":0,"met":False})
@@ -146,7 +146,7 @@ def eventRestrictions():
 
 def compresscurrentData():
     global buildings
-    dataToSend = {"buildings":[]}
+    dataToSend = {"buildings":[],"generator":0}
     for building in buildings:
         dataToSend["buildings"].append({"solar":building["solar"], "battery": building["battery"], "grid": building["grid"]})
     dataToSend["generator"] = generator
