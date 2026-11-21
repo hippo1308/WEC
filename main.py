@@ -155,14 +155,14 @@ def compresscurrentData():
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.bind((HOST,PORT))
+    s.connect((HOST,PORT))
     print("socket connected!!!", flush = True)
-    s.listen(1)
+    s.listen(10)
     for hour in range(24):
         conn, addr = s.accept()
-        convJsonToList(recvJSON(conn))
+        convJsonToList(recvJSON(s))
         eventRestrictions()
         batteryCharge += generator
         generator = 0
-        sendJSON(conn,compresscurrentData())
+        sendJSON(s,compresscurrentData())
         
