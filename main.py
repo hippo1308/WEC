@@ -36,12 +36,14 @@ def recvJSON(sock: socket.socket):
     return json.loads(rawPayload.decode("utf-8"))
 
 def distributePower(max, pType):
+    global batteryCharge
     buildingNum = len(buildings)
     i = 0
     toDistribute = max
     while ((toDistribute) and (i < buildingNum)):
-        if(((pType == "solar") and (buildings[i]["type"] != "lecture_hall")) or (pType != "solar")):
-            #Distribute Solar until 200 cap is reached
+        if((pType == "solar") and (buildings[i]["type"] == "lecture_hall")):
+           pass
+        else:
             if (buildings[i]["met"] == False):
                 buildingLoad = buildings[i]["load"] - buildings[i]["solar"] - buildings[i]["battery"] - buildings[i]["grid"]
                 if buildingLoad < toDistribute:
@@ -99,18 +101,13 @@ def reactToForecast():  #Based on current battery charge, time of day, and predi
             expectedSavings = probUsed*estimated_price
 
             if expectedSavings>1.0:
-                generator +=1
+                generator += 1.5
             else:
                 break
-    return generator
+    return min(available_charge, generator//1)
 
 def eventRestrictions():
-
     # when we are past 22:00, demand is low --> use solar power, and battery
-    if hour <= 22:
-        distributePower(200,"solar")
-        distributePower(batteryCharge,"battery")
-    
     if price < 1: #if grid price is below a dollar, use the grid and ditch the battery
         if event == "cloudy_weather":
             distributePower(100000,"grid")
@@ -126,10 +123,13 @@ def eventRestrictions():
     # if "generator_failure" Generator can't be used
         # redistribute --> use mostly solar and battery
     elif event == "generator_failure":
-        distributePower(200, "solar")
+        distributePower(200, "solar")     
+        if batteryCharge > 0: 
             #use battery for the rest
-        distributePower(batteryCharge, "battery")
-        
+            distributePower(batteryCharge, "battery")
+        else:
+            #use grid
+            distributePower(10000, "grid")
         
     # if battery failure, battery can't be used
     elif event == "battery_failure":
@@ -142,6 +142,12 @@ def eventRestrictions():
     elif event == "grid_failure":
         distributePower(200, "solar")
         distributePower(batteryCharge, "battery")
+
+    else:
+        distributePower(200, "solar")
+        distributePower(batteryCharge, "battery")
+        distributePower(100000,"grid")
+
 
 def compresscurrentData():
     global buildings
