@@ -145,8 +145,6 @@ def eventRestrictions():
         distributePower(200, "solar")
         distributePower(batteryCharge, "battery")
 
-
-
 def compresscurrentData():
     global buildings
     dataToSend = {"buildings":[]}
@@ -157,14 +155,14 @@ def compresscurrentData():
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((HOST,PORT))
+    s.bind((HOST,PORT))
     print("socket connected!!!", flush = True)
-    conn, addr = s.accept()
+    s.listen(1)
     for hour in range(24):
-        convJsonToList(recvJSON(s))
+        conn, addr = s.accept()
+        convJsonToList(recvJSON(conn))
         eventRestrictions()
         batteryCharge += generator
         generator = 0
-        sendJSON(s,compresscurrentData())
+        sendJSON(conn,compresscurrentData())
         
-
