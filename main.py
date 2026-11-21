@@ -52,6 +52,8 @@ def distributePower(max, pType):
                     buildings[i][pType] = toDistribute
                     toDistribute = 0
         i += 1
+    if (pType == "battery"):
+        batteryCharge = toDistribute
 
 def reactToForecast():  #Based on current battery charge, time of day, and predicted weather, run the generator
     global generator
@@ -146,6 +148,7 @@ def eventRestrictions():
 
 def compresscurrentData():
     global buildings
+    global generator
     dataToSend = {"buildings":[],"generator":0}
     for building in buildings:
         dataToSend["buildings"].append({"solar":building["solar"], "battery": building["battery"], "grid": building["grid"]})
@@ -159,6 +162,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
     for hour in range(24):
         convJsonToList(recvJSON(client))
         eventRestrictions()
+        reactToForecast()
         batteryCharge += generator
         generator = 0
         sendJSON(client,compresscurrentData())
