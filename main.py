@@ -126,13 +126,10 @@ def eventRestrictions():
     # if "generator_failure" Generator can't be used
         # redistribute --> use mostly solar and battery
     elif event == "generator_failure":
-        distributePower(200, "solar")     
-        if batteryCharge > 0: 
+        distributePower(200, "solar")
             #use battery for the rest
-            distributePower(batteryCharge, "battery")
-        else:
-            #use grid
-            distributePower(10000, "grid")
+        distributePower(batteryCharge, "battery")
+        
         
     # if battery failure, battery can't be used
     elif event == "battery_failure":
